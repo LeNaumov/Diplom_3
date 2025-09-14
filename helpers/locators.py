@@ -42,3 +42,11 @@ class PersonalAccountPageLocators:
     entrance_button = (By.XPATH, ".//button[text()='Войти']")
     exit_button = (By.XPATH, ".//button[text()='Выход']")
 
+class RecoveryPasswordPageLocators:
+
+    recovery_password_page_title = (By.XPATH, "//div[@class='Auth_login__3hAey']")
+    input_email = (By.XPATH, ".//input[@class='text input__textfield text_type_main-default']")
+    recovery_button = (By.XPATH, ".//button[text()='Восстановить']")
+    save_button = (By.XPATH, ".//button[text()='Сохранить']")
+    password_hide_show_button = (By.XPATH,".//div[@class='input__icon input__icon-action']")
+    password_field = (By.XPATH, ".//input[@class='text input__textfield text_type_main-default']")
