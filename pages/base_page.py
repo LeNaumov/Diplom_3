@@ -1,101 +1,95 @@
 import allure
-from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from tests.conftest import browser
+from selenium.common.exceptions import TimeoutException
+from seletools.actions import drag_and_drop
 
 
 class BasePage:
     def __init__(self, driver):
         self.driver = driver
 
-    @allure.step('Открываем страницу {url}')
-    def open_url(self, url):
-        self.driver.get(url)
-
-    @allure.step('Получаем URL активной страницы')
-    def get_current_url(self):
-        return self.driver.current_url
-
-    @allure.step('Находим элемент на странице.')
-    def find_element_on_page(self, locator):
+    @allure.step("Подождать видимости элемента")
+    def wait_for_visible_element(self, locator, timeout=10):
+        WebDriverWait(self.driver, timeout).until(EC.visibility_of_element_located(locator))
         return self.driver.find_element(*locator)
 
-    @allure.step('Навигация до элемента страницы')
-    def scroll_to_element(self, locator):
-        self.driver.execute_script("arguments[0].scrollIntoView();", self.driver.find_element(*locator))
+    @allure.step("Подождать невидимости элемента")
+    def wait_for_invisible_element(self, locator, timeout=10):
+        return WebDriverWait(self.driver, timeout).until_not(EC.visibility_of_element_located(locator))
 
-    @allure.step('Нажатие на элемент страницы')
-    def click_on_element(self, locator):
-        element = self.find_element_on_page(locator)
-        self.driver.execute_script("arguments[0].click();", element)
 
-    def scroll_and_click_on_element(self, locator):
-        self.scroll_to_element(locator)
-        self.wait_clickability_of_element(locator)
-        self.click_on_element(locator)
+    @allure.step("Подождать присутствия элемента")
+    def wait_for_presence_element(self, locator, timeout=10):
+        WebDriverWait(self.driver, timeout).until(EC.presence_of_element_located(locator))
+        return self.driver.find_element(*locator)
 
-    @allure.step('Вводим значение в поле')
-    def send_keys_to_input(self, locator, keys):
-        self.driver.find_element(*locator).send_keys(keys)
+    @allure.step("Скролл до элемента")
+    def scroll_to_element(self, locator, timeout=10):
+        element = self.wait_for_visible_element(locator, timeout)
+        self.driver.execute_script("arguments[0].scrollIntoView();", element)
 
-    @allure.step('Проверяем, что элемент в фокусе.')
-    def check_element_is_focused(self, locator):
-        element = self.driver.find_element(*locator)
-        is_focused = self.driver.execute_script("return document.activeElement === arguments[0];", element)
-        return is_focused
+    @allure.step("Кликнуть на элемент")
+    def click_on_element(self, locator, timeout=10):
+        element = WebDriverWait(self.driver, timeout).until(
+            EC.element_to_be_clickable(locator)
+        )
+        element.click()
 
-    @allure.step('Получаем текст на элементе.')
-    def get_element_text(self, locator):
-        self.wait_visibility_of_element(locator)
-        return self.find_element_on_page(locator).text
+    @allure.step("Ввести текст в поле ввода")
+    def send_keys_to_input(self, locator, keys, timeout=10):
+        element = self.wait_for_visible_element(locator, timeout)
+        element.clear()
+        element.send_keys(keys)
 
-    @allure.step('Перетаскиваем элемент.')
-    def drag_and_drop_element(self, dry, element_from, element_to):
-        if browser == 'chrome':
-            from_element = self.driver.find_element(*element_from)
-            to_element = self.driver.find_element(*element_to)
-            action = ActionChains(dry)
-            action.drag_and_drop(from_element, to_element).perform()
-            return action.drag_and_drop(from_element, to_element).perform()
-        source_element = WebDriverWait(self.driver, 10).until(EC.visibility_of_element_located(element_from))
-        target_element = WebDriverWait(self.driver, 10).until(EC.visibility_of_element_located(element_to))
-        self.driver.execute_script(
-            "function createEvent(typeOfEvent) { " +
-            "var event = document.createEvent('CustomEvent'); " +
-            "event.initCustomEvent(typeOfEvent, true, true, null); " +
-            "event.dataTransfer = { " +
-            "data: {}, " +
-            "setData: function(key, value) { this.data[key] = value; }, " +
-            "getData: function(key) { return this.data[key]; } " +
-            "}; " +
-            "return event; " +
-            "} " +
-            "function dispatchEvent(element, typeOfEvent, event) { " +
-            "if (element.dispatchEvent) { " +
-            "element.dispatchEvent(event); " +
-            "} else if (element.fireEvent) { " +
-            "element.fireEvent('on' + typeOfEvent, event); " +
-            "} " +
-            "} " +
-            "function simulateHTML5DragAndDrop(element, destination) { " +
-            "var dragStartEvent = createEvent('dragstart'); " +
-            "dispatchEvent(element, 'dragstart', dragStartEvent); " +
-            "var dropEvent = createEvent('drop'); " +
-            "dispatchEvent(destination, 'drop', dropEvent); " +
-            "var dragEndEvent = createEvent('dragend'); " +
-            "dispatchEvent(element, 'dragend', dragEndEvent); " +
-            "} " +
-            "simulateHTML5DragAndDrop(arguments[0], arguments[1]);",
-            source_element,
-            target_element
+    @allure.step("Получить текст элемента")
+    def get_text_on_element(self, locator, timeout=10):
+        element = self.wait_for_visible_element(locator, timeout)
+        return element.text
+
+    @allure.step("Получить атрибут элемента")
+    def get_element_attribute(self, locator, attribute_name, timeout=10):
+        element = self.wait_for_presence_element(locator, timeout)
+        return element.get_attribute(attribute_name)
+
+    @allure.step("Получить CSS свойство элемента")
+    def get_element_css_property(self, locator, property_name, timeout=10):
+        element = self.wait_for_presence_element(locator, timeout)
+        return element.value_of_css_property(property_name)
+
+    @allure.step("Подождать и проверить, что атрибут элемента содержит текст")
+    def wait_for_attribute(self, locator, attribute, value, timeout=10):
+        return WebDriverWait(self.driver, timeout).until(
+            EC.text_to_be_present_in_element_attribute(locator, attribute, value)
         )
 
-    @allure.step('Ожидаем отображения элемента на странице')
-    def wait_visibility_of_element(self, locator):
-        return WebDriverWait(self.driver, 10).until(expected_conditions.visibility_of_element_located(locator))
+    @allure.step("Перейти на другую вкладку")
+    def switch_to_next_tab(self):
+        self.driver.switch_to.window(self.driver.window_handles[1])
 
-    @allure.step('Ожидаем пока элемент станет кликабельным')
-    def wait_clickability_of_element(self, locator):
-        return WebDriverWait(self.driver, 10).until(expected_conditions.element_to_be_clickable(locator))
+    @allure.step("Получить текущий url страницы")
+    def get_page_url(self):
+        return self.driver.current_url
+
+    @allure.step('Перетащить элемент')
+    def drag_and_drop_element(self, source, target):
+        drag_and_drop(self.driver, source, target)
+
+    @allure.step('Проверить отображение элемента')
+    def is_element_displayed(self, locator):
+        try:
+            element = self.wait_for_visible_element(locator)
+            return element.is_displayed()
+        except TimeoutException:
+            return False
+
+    @allure.step('Перейти на страницу')
+    def go_to_url(self, url):
+        self.driver.get(url)
+
+    @allure.step('Подождать пока изменится текст на элементе')
+    def find_and_wait_until_text_changes(self, locator, initial_text, timeout=30):
+        WebDriverWait(self.driver, timeout).until(
+            lambda _: self.get_text_on_element(locator) != initial_text, timeout
+        )
+        return self.wait_for_visible_element(locator)
